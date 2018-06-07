@@ -1,47 +1,120 @@
 package models;
 
 import java.sql.ResultSet;
-import models.DAO;
 import java.util.ArrayList;
 import java.sql.SQLException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import models.DAO;
+
 
 public class UserDAO extends DAO
 {
-    public void insert(User user)
+    public boolean insert(User user)
     {
-        if (!user.getUsername().equals("")) {
-            if (findByUsername(user.getUsername()) == null){
-                
-            }
+        boolean canInsert = !userExists(user);
+        if (canInsert){
+            simpleInsert("users", user.getName(), user.getUsername(), user.getPassword().getHash());
         }
+        return canInsert;
+    }
+    
+    public int insert(User... users)
+    {
+        Object[][] args = new Object[users.length][4];
+        int i = 0;
+        for (User user: users){
+            args[i][0] = user.getName();
+            args[i][1] = user.getUsername();
+            args[i++][2] = user.getPassword().getHash();
+        }
+        return simpleInsert("users", args);
     }
 
-    public User findByUsername(String username)
+    public void delete(User user)
     {
-        User user = null;
-        String query = "select id, name, username, password from users where username = ?";
-        Object[] params = { username };
-        ResultSet res = executeQuery(query, params);
+        delete(user.getUsername());
+    }
+
+    public void delete(String username)
+    {
+        simpleDelete("users", "username = ?", new Object[]{ username });
+    }
+    
+    public boolean userExists(User user)
+    {
+        return userExists(user.getUsername());
+    }
+    
+    public boolean userExists(String username)
+    {
+        ResultSet res = simpleSelect("users", new String[]{"id"}, "username = ?", username);
         
         try {
             if (res.next()) {
-                user.setId(res.getInt("id"));
-                user.setName(res.getString("name"));
-                user.setUsername(res.getString("username"));
-                user.setPassword(res.getString("username"));
+                return true;
             }
         } catch (SQLException ex) {
             Logger.getLogger(UserDAO.class.getName()).log(Level.SEVERE, null, ex);
+            System.exit(0);
+        }
+        
+        return false;
+    }
+
+    public boolean userExists(String... usernames)
+    {
+        String where = "username in (";
+        for (int i = 0; i < usernames.length; i++) {
+            if (i != usernames.length - 1) where += "?, ";
+            else where += "?";
+        }
+        where += ")";
+        
+        ResultSet res = simpleSelect("users", new String[]{"id"}, where, (Object[]) usernames);
+        
+        try {
+            if (res.next()) {
+                return true;
+            }
+        } catch (SQLException ex) {
+            Logger.getLogger(UserDAO.class.getName()).log(Level.SEVERE, null, ex);
+            System.exit(0);
+        }
+        
+        return false;
+    }
+
+    
+    public User findByUsername(String username)
+    {
+        User user = null;
+        ResultSet res = simpleSelect("users", new String[]{"username"}, "username = ?", username);
+        try {
+            if (res.next()) {
+                user = new User(res);
+            }
+        } catch (SQLException ex) {
+            Logger.getLogger(UserDAO.class.getName()).log(Level.SEVERE, null, ex);
+            System.exit(0);
         }
 
         return user;
     }
-
+   
     public ArrayList<User> findAll()
     {
         ArrayList<User> users = new ArrayList<>();
+        ResultSet res = simpleSelect("users", "id", "name", "username", "password");
+        try {
+            while (res.next()) {
+                User user = new User(res);
+                users.add(user);
+            }
+        } catch (SQLException ex) {
+            Logger.getLogger(UserDAO.class.getName()).log(Level.SEVERE, null, ex);
+            System.exit(0);
+        }
         
         return users;
     }

@@ -1,26 +1,28 @@
 package models;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import util.Password;
+
+
 public class User {
 
     int id;
-    String name, username, password;
+    String name, username;
+    Password password;
 
-    User()
+    public User()
     {
     }
 
-    User(String name, String username, String password)
+    User(ResultSet res) throws SQLException
     {
+        id = res.getInt("id");
+        name = res.getString("name");
+        username = res.getString("username");
+        password = Password.fromHash(res.getString("password"));
     }
-
-    public int getId() {
-        return id;
-    }
-
-    public void setId(int id) {
-        this.id = id;
-    }
-
+    
     public String getName() {
         return name;
     }
@@ -37,11 +39,20 @@ public class User {
         this.username = username;
     }
 
-    public String getPassword() {
+    public Password getPassword() {
         return password;
     }
 
-    public void setPassword(String password) {
+    public void setPassword(Password password) {
         this.password = password;
+    }
+
+    public void setPassword(String password) {
+        this.password = new Password(password);
+    }
+    
+    public void save()
+    {
+        new UserDAO().insert(this);
     }
 }
